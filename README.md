@@ -1,20 +1,23 @@
 # table-extraction
 
-#### **This program can process all the .pdf and image files in the folder and extract the table within them.**
-#### **(Table Extraction Program by Roderick & Kevin for internship project in Capacura GmbH.)**
+#### **📝This program can process all the .pdf and image files in the folder and extract the table within them.**
+#### **🔰Table Extraction Program by Roderick & Kevin for internship project in Capacura GmbH.**
+
+<img src="https://user-images.githubusercontent.com/73574008/223568380-07135ddc-a63e-4be2-b560-902483a2eaeb.png"  width="80%" height="80%">
+
 ---
 
 ## Progress
-- [x] **Image/PDF preprocessing**
-- [x] **Hough line transformation**
-- [x] **Intersections processing**
-- [x] **Table formulation based on intersections**
-- [x] **Text recognition based on OCR**
-- [x] **Auto-rotation pages**
-- [ ] **Short column line detection problem (which decreases the performance of the hough line transformation)**
-- [ ] **Repeated header in consecutive pages**
-- [ ] **Truncated texts in consecutive pages**
-- [ ] **DPI & Hough line threshold parameters fine-tuning**
+- ✅ **Image/PDF preprocessing**
+- ✅ **Hough line transformation**
+- ✅ **Intersections processing**
+- ✅ **Table formulation based on intersections**
+- ✅ **Text recognition based on OCR**
+- ✅ **Auto-rotation pages**
+- ⬜️ **Short column line detection problem (which decreases the performance of the hough line transformation)**
+- ⬜️ **Repeated header in consecutive pages**
+- ⬜️ **Truncated texts in consecutive pages**
+- ⬜️ **DPI & Hough line threshold parameters fine-tuning**
 
 ## Python Version
   * **3.7.10**

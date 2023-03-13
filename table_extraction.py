@@ -275,7 +275,7 @@ def houghline(img_array, eliminate_overlapped_lines=True, tolerable_shifted_angl
     lines_vertical = cv2.HoughLines(img_array, rho, theta, int(square_h*thresh_per), min_theta=math.radians(-tolerable_shifted_angle), max_theta=math.radians(tolerable_shifted_angle))
     if lines_horizontal is not None and eliminate_overlapped_lines:
         lines_vertical = eliminate_lines(lines_vertical)
-    lines = None if lines_horizontal is None and lines_vertical is None else np.concatenate((lines_horizontal, lines_vertical), 0)
+    lines = None if lines_horizontal is None and lines_vertical is None else [lines_horizontal, lines_vertical]
     return lines
 
 
@@ -285,7 +285,7 @@ def draw_line(img, lines):
         This function takes in an image and a set of lines and draws the lines on the image.
         If the line is vertical, it is drawn in red; otherwise, it is drawn in blue.
     '''
-
+    lines = np.concatenate(lines, 0)
     if lines is not None:
         for line in lines:
                 for rho,theta in line:
@@ -333,12 +333,12 @@ def text_extraction(img, sorted_intersections):
         Once the length of each row and column is known, it extracts the text from the table by cropping each cell and running OCR on it.
     '''
 
-    if sorted_intersections[0][0] < sorted_intersections[1][0]:
-        slight_right_rotated = True
-        if args.DRAW or args.DEBUG:
-            print("rotation happens!")
-    else:
-        slight_right_rotated = False
+    # if sorted_intersections[0][0] < sorted_intersections[1][0]:
+    #     slight_right_rotated = True
+    #     if args.DRAW or args.DEBUG:
+    #         print("rotation happens!")
+    # else:
+    #     slight_right_rotated = False
         # If the table is rotate a little bit, the sorted intersection shold the inverse with the x-axis.
     for idx in range(1, len(sorted_intersections)):            # Until we find a different y-axis value, we obtain the length of the row.
         current_point = sorted_intersections[idx][0]
@@ -350,12 +350,12 @@ def text_extraction(img, sorted_intersections):
     row_intersections = idx
     # col_intersections = len(sorted_intersections) // row_intersections
 
-    if slight_right_rotated:
-        for i in range(0, len(sorted_intersections), row_intersections):
+    # if slight_right_rotated:
+    #     for i in range(0, len(sorted_intersections), row_intersections):
 
-            # if the table is rotate a little bit, the sorted intersection shold the inverse with the x-axis.
-            if sorted_intersections[i][1] > sorted_intersections[i + 1][1]:
-                sorted_intersections = reverse_sublist(sorted_intersections, i, i + row_intersections)
+    #         # if the table is rotate a little bit, the sorted intersection shold the inverse with the x-axis.
+    #         if sorted_intersections[i][1] > sorted_intersections[i + 1][1]:
+    #             sorted_intersections = reverse_sublist(sorted_intersections, i, i + row_intersections)
 
     if args.DRAW or args.DEBUG:
         print('='*120)
@@ -465,17 +465,17 @@ def process_intersections(lines, h, w):
         The process_intersections function takes in a list of lines detected in an image, and finds their intersections.
     '''
 
-    # Segment the lines based on angle using k-means.
-    segmented = segment_by_angle_kmeans(lines)
+    # # Segment the lines based on angle using k-means.
+    # segmented = segment_by_angle_kmeans(lines)
 
     # Find the intersections between the groups of lines.
-    intersections = segmented_intersections(segmented, h, w)
+    intersections = segmented_intersections(lines, h, w)
 
     if args.DRAW or args.DEBUG:
         print('Intersections: ', len(intersections))  # Print the number of intersections.
 
-    # Remove the close intersections.
-    intersections = remove_close_points(intersections)
+    # # Remove the close intersections.
+    # intersections = remove_close_points(intersections)
 
     # Sort the intersections.
     # intersections = sorted(intersections, key=cmp_to_key(sorted_cmp))

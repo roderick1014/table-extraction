@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import cv2
+import math
 import json
 import os.path
 import imutils
@@ -21,6 +22,7 @@ from pdf2image import convert_from_path
 
 # Defining the function to show images.
 def img_show(img_array, height = 1000, name = 'window'):  # height = 1200
+    # cv2.line(img_array, (100, 100), (500, 500), (80, 128, 255), 2)
     cv2.imshow(name, imutils.resize(img_array, height))
     cv2.waitKey(0)
 
@@ -48,6 +50,8 @@ def process_pdf(path):
 
     # Processing each page of the PDF file.
     for idx in pages_bar:
+        if idx == 0:
+            continue
         pages_bar.set_description_str(' * Filename "' + path + '"')
         pages_bar.set_postfix(page = idx + 1)
 
@@ -100,6 +104,10 @@ def process_pdf(path):
 
             if args.DRAW or args.DEBUG:
                 draw_line(img_array, lines)
+                cv2.line(img_array,(500, 500),(500, 530), (80, 128, 255), 2)
+                cv2.line(img_array,(500, 530),(530, 530), (80, 128, 255), 2)
+                cv2.line(img_array,(530, 500),(530, 530), (80, 128, 255), 2)
+                cv2.line(img_array,(530, 500),(500, 500), (80, 128, 255), 2)
                 img_show(img_array)
 
             # Getting the intersections of the lines.
@@ -129,9 +137,7 @@ def table_processing(table_record, new_path_name):
         After that, it converts the table into a Pandas DataFrame and then to a dictionary which is then saved as a JSON file.
     '''
 
-    table = table_record[0]
-    for idx in range(1, len(table_record)):
-        table = np.concatenate((table, table_record[idx]), axis = 1)
+    table = np.concatenate(table_record, axis = 1)
     table = np.transpose(table, (1, 0))
 
     df = pd.DataFrame(table[1:], columns = table[0])
@@ -176,7 +182,7 @@ def keep_table(img):
 
     if np.sum(img_bin) != 0:
 
-        cv2.waitKey(0)
+        # cv2.waitKey(0)
         img_bin1 = 255 - img
         thresh1, img_bin1_otsu = cv2.threshold(img_bin1,128,255,cv2.THRESH_OTSU)
 
@@ -204,14 +210,45 @@ def keep_table(img):
     else:
         return np.zeros_like(img_bin)
 
+def find_minValidSquare(img_array):
+    if (img_array == 255).sum() < 10:
+        left_most_x = 0
+        right_most_x = img_array.shape[1]
+        top_most_y = 0
+        bottom_most_y = img_array.shape[0]
+    else:
+        # first_nonzero_idx_x = np.min(np.argwhere(img_array == 255), axis=1)
+        last_nonzero_idx_x = np.max(np.argwhere(img_array == 255), axis=1)
+        # first_nonzero_idx_y = np.min(np.argwhere(img_array == 255), axis=0)
+        last_nonzero_idx_y = np.max(np.argwhere(img_array == 255), axis=0)
+        left_most_x = np.argmax(np.argmax(img_array, 0)!=0)
+        right_most_x = max(last_nonzero_idx_x)
+        top_most_y = np.argmax(np.argmax(img_array, 1)!=0)
+        bottom_most_y = min(last_nonzero_idx_y)
+    return ((left_most_x, top_most_y), (right_most_x, top_most_y), (right_most_x, bottom_most_y), (left_most_x, bottom_most_y)), bottom_most_y - top_most_y, right_most_x - left_most_x
+
 # Defining the function to conduct hough transform.
 def houghline(img_array):
     '''
         This function applies the Hough transform to an image to detect lines. It returns the detected lines.
     '''
 
-    rho, theta, thresh = 2, np.pi/180, args.THRESHOLD
-    lines = cv2.HoughLines(img_array, rho, theta, thresh)
+    # Find the width and height of the minimum square region that containing all candidate edge points 
+    corner_points, square_h, square_w = find_minValidSquare(img_array)
+
+    # Draw the minimum square region that containing all candidate edge points 
+    if args.DRAW or args.DEBUG:
+        img_array_debug = np.array(np.broadcast_to(np.expand_dims(img_array, -1), (*img_array.shape, 3)))
+        cv2.line(img_array_debug, corner_points[0], corner_points[1], (80, 128, 255), 2)
+        cv2.line(img_array_debug, corner_points[1], corner_points[2], (80, 128, 255), 2)
+        cv2.line(img_array_debug, corner_points[2], corner_points[3], (80, 128, 255), 2)
+        cv2.line(img_array_debug, corner_points[3], corner_points[0], (80, 128, 255), 2)
+        img_show(np.array(img_array_debug))
+
+    rho, theta, thresh, thresh_per = 2, np.pi/180, args.THRESHOLD, args.THRESHOLD_PERCENTAGE
+    lines_horizontal = cv2.HoughLines(img_array, rho, theta, int(square_w*thresh_per), min_theta=math.radians(90-5), max_theta=math.radians(90+5))
+    lines_vertical = cv2.HoughLines(img_array, rho, theta, int(square_h*thresh_per), min_theta=math.radians(-5), max_theta=math.radians(5))
+    lines = None if lines_horizontal is None and lines_vertical is None else np.concatenate((lines_horizontal, lines_vertical), 0)
     return lines
 
 
@@ -324,7 +361,7 @@ def text_extraction(img, sorted_intersections):
     return np.array(table_record)
 
 # Defining the function to remove the close intersection points.
-def remove_close_points(input_list, threshold=(30,30)):
+def remove_close_points(input_list, threshold=(30, 30)):
     '''
         This function remove the close points and remove the redundant intersection dots.
     '''
@@ -560,9 +597,11 @@ def config_message():
 def main():
 
     # List all the directions in the current folder.
-    paths = os.listdir()
+    paths = [os.path.join(args.FILES_DIR, f) for f in os.listdir(args.FILES_DIR)]
 
     for path in paths:
+        if 'rotated_example' not in path:
+            continue
         # If a pdf file is read.
         if path[-4:] == '.pdf':
             # Process the pdf file.
@@ -580,6 +619,8 @@ if __name__ == '__main__':
     parser.add_argument("--DEBUG", default=False, action='store_true')
     parser.add_argument('--DPI', default = 200, type=int)  # DPI 200
     parser.add_argument('--THRESHOLD', default = 1300, type=int)
+    parser.add_argument('--THRESHOLD_PERCENTAGE', default = 0.8, type=float)
+    parser.add_argument('--FILES_DIR', default = './', type=str)
     args = parser.parse_args()
 
     # Display the configuration.

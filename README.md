@@ -66,17 +66,26 @@
 ## Instructions
 
 * **To save each page in the PDF file, add --SAVE_EACH_PAGE:**
-
-  ```python .\table_extraction.py --SAVE_EACH_PAGE```
+   ```sh
+   python .\table_extraction.py --SAVE_EACH_PAGE
+   ```
 
 * **To draw and visualize the houghline & intersection dots in the image, add --DRAW:**
-
-  ```python .\table_extraction.py --DRAW```
+   ```sh
+   python .\table_extraction.py --DRAW
+   ```
 
 * **To specify the threshold of the houghline, add --THRESHOLD 'number':**
-
-  ```python .\table_extraction.py --THRESHOLD 1300```
+   ```sh
+   python .\table_extraction.py --THRESHOLD 1300
+   ```
 
 * **To specify the DPI parameter, add --DPI 'number':**
-
-  ```python .\table_extraction.py --DPI 200```
+   ```sh
+   python .\table_extraction.py --DPI 200
+   ```
+  
+* **To specify the folder containing the pdf files:**
+   ```sh
+   python .\table_extraction.py --FILES_DIR ./
+   ```

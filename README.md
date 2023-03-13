@@ -39,15 +39,29 @@
 *  **PyTesseract (5.3.0)**
     *  **[Tutorial 1](https://digi.bib.uni-mannheim.de/tesseract/)**
     *  **[Tutorial 2](https://vocus.cc/article/621cfdb3fd8978000162a2e8)**
-*  **PyTesseract (MacOS)**
-    ```sh
-    pip3 install PyTesseract                          # Install the python package for Tesseract
-    sudo port install Tesseract                       # Install Tesseract
-    sudo port install tesseract-eng                   # Install the English version package of Tesseract
-    sudo port install tesseract-deu                   # Install the Germany version package of Tesseract
-    sudo port install tesseract-osd                   # Install the Tesseract package required by auto rotation
-    export TESSDATA_PREFIX=/opt/local/share/tessdata/ # Set the TESSDATA_PREFIX environment variable to the Tesseract data directory
-    ```
+    *   <details>
+        <summary>MacOS Instructions</summary>
+        
+        ### 1. Install the python package for Tesseract
+        ```sh
+        pip3 install PyTesseract  
+        ```
+        ### 2. Install Tesseract
+        ```sh
+        sudo port install Tesseract    
+        ```
+        ### 3. Install the Tesseract package required by OCR and auto rotation
+        ```sh
+        sudo port install tesseract-eng
+        sudo port install tesseract-deu
+        sudo port install tesseract-osd
+        ```
+ 
+        ### 4. Set the TESSDATA_PREFIX environment variable to the Tesseract data directory
+        ```sh
+        export TESSDATA_PREFIX=/opt/local/share/tessdata/
+        ```
+        </details>  
 
 ## Instructions
 

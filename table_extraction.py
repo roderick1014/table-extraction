@@ -22,7 +22,6 @@ from pdf2image import convert_from_path
 
 # Defining the function to show images.
 def img_show(img_array, height = 1000, name = 'window'):  # height = 1200
-    # cv2.line(img_array, (100, 100), (500, 500), (80, 128, 255), 2)
     cv2.imshow(name, imutils.resize(img_array, height))
     cv2.waitKey(0)
 
@@ -102,10 +101,6 @@ def process_pdf(path):
 
             if args.DRAW or args.DEBUG:
                 draw_line(img_array, lines)
-                cv2.line(img_array,(500, 500),(500, 530), (80, 128, 255), 2)
-                cv2.line(img_array,(500, 530),(530, 530), (80, 128, 255), 2)
-                cv2.line(img_array,(530, 500),(530, 530), (80, 128, 255), 2)
-                cv2.line(img_array,(530, 500),(500, 500), (80, 128, 255), 2)
                 img_show(img_array)
 
             # Getting the intersections of the lines.
@@ -225,6 +220,35 @@ def find_minValidSquare(img_array):
         bottom_most_y = min(last_nonzero_idx_y)
     return ((left_most_x, top_most_y), (right_most_x, top_most_y), (right_most_x, bottom_most_y), (left_most_x, bottom_most_y)), bottom_most_y - top_most_y, right_most_x - left_most_x
 
+# Eliminate the overlapped lines
+def eliminate_lines(lines, threshold=30):
+    combos = itertools.combinations(lines, 2)
+    clustered_lines = set()
+    clusters = dict()
+    prev_point = lines[0]
+    for line1, line2 in combos:
+        if str(line1) != str(prev_point) and str(prev_point) not in clustered_lines:
+            clustered_lines.add(str(prev_point))
+            clusters[str(prev_point)].append(prev_point)
+        prev_point = line1
+        if str(line1) not in clusters.keys() and str(line1) not in clustered_lines:
+            clusters[str(line1)] = list()
+        if str(line1) in clustered_lines or str(line2) in clustered_lines:
+            continue
+        if abs(line1[0][0] - line2[0][0]) <= threshold:
+            clustered_lines.add(str(line2))
+            clusters[str(line1)].append(line2)
+    if str(prev_point) not in clustered_lines:   
+        clusters[str(prev_point)].append(prev_point)
+    if str(lines[-1]) not in clustered_lines:   
+        clusters[str(lines[-1])] = [lines[-1]]
+    points_to_keep = list()
+    for cluster in clusters.values():
+        cluster_array = np.array(cluster)
+        points_to_keep.append(np.expand_dims(cluster_array[np.argmax(cluster_array==np.median(cluster_array, 0)[0][0], 0)[0][0]], 0))
+    points_to_keep = np.concatenate(points_to_keep, 0)
+    return points_to_keep
+
 # Defining the function to conduct hough transform.
 def houghline(img_array):
     '''
@@ -245,7 +269,11 @@ def houghline(img_array):
 
     rho, theta, thresh, thresh_per = 2, np.pi/180, args.THRESHOLD, args.THRESHOLD_PERCENTAGE
     lines_horizontal = cv2.HoughLines(img_array, rho, theta, int(square_w*thresh_per), min_theta=math.radians(90-5), max_theta=math.radians(90+5))
+    if lines_horizontal is not None:
+        lines_horizontal = eliminate_lines(lines_horizontal)
     lines_vertical = cv2.HoughLines(img_array, rho, theta, int(square_h*thresh_per), min_theta=math.radians(-5), max_theta=math.radians(5))
+    if lines_horizontal is not None:
+        lines_vertical = eliminate_lines(lines_vertical)
     lines = None if lines_horizontal is None and lines_vertical is None else np.concatenate((lines_horizontal, lines_vertical), 0)
     return lines
 

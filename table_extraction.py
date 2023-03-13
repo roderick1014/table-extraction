@@ -50,8 +50,6 @@ def process_pdf(path):
 
     # Processing each page of the PDF file.
     for idx in pages_bar:
-        if idx == 0:
-            continue
         pages_bar.set_description_str(' * Filename "' + path + '"')
         pages_bar.set_postfix(page = idx + 1)
 
@@ -600,8 +598,6 @@ def main():
     paths = [os.path.join(args.FILES_DIR, f) for f in os.listdir(args.FILES_DIR)]
 
     for path in paths:
-        if 'rotated_example' not in path:
-            continue
         # If a pdf file is read.
         if path[-4:] == '.pdf':
             # Process the pdf file.

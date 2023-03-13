@@ -14,10 +14,12 @@
 - ✅ **Table formulation based on intersections**
 - ✅ **Text recognition based on OCR**
 - ✅ **Auto-rotation pages**
-- ⬜️ **Short column line detection problem (which decreases the performance of the hough line transformation)**
+- ✅ **Short column line detection problem**
+- ⬜️ **Underline problem**
+- ⬜️ **Thin line problem**
+- ⬜️ **Multi-table problem**
 - ⬜️ **Repeated header in consecutive pages**
 - ⬜️ **Truncated texts in consecutive pages**
-- ⬜️ **DPI & Hough line threshold parameters fine-tuning**
 
 ## Python Version
   * **3.7.10**

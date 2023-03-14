@@ -20,6 +20,7 @@ from functools import cmp_to_key
 from collections import defaultdict
 from argparse import ArgumentParser
 from pdf2image import convert_from_path
+from concurrent.futures import ThreadPoolExecutor
 
 # Defining the function to show images.
 def img_show(img_array, height = 1000, name = 'window'):  # height = 1200
@@ -50,6 +51,8 @@ def process_pdf(path):
 
     # Processing each page of the PDF file.
     for idx in pages_bar:
+        # if idx < 2:
+        #     continue
         pages_bar.set_description_str(' * Filename "' + path + '"')
         pages_bar.set_postfix(page = idx + 1)
 
@@ -222,7 +225,7 @@ def find_minValidSquare(img_array):
     return ((left_most_x, top_most_y), (right_most_x, top_most_y), (right_most_x, bottom_most_y), (left_most_x, bottom_most_y)), bottom_most_y - top_most_y, right_most_x - left_most_x
 
 # Eliminate the overlapped lines
-def eliminate_lines(lines, threshold=30):
+def eliminate_lines(lines, threshold=30, mode='p'):
     combos = itertools.combinations(lines, 2)
     clustered_lines = set()
     clusters = dict()
@@ -246,7 +249,15 @@ def eliminate_lines(lines, threshold=30):
     points_to_keep = list()
     for cluster in clusters.values():
         cluster_array = np.array(cluster)
-        points_to_keep.append(np.expand_dims(cluster_array[np.argmax(cluster_array==np.median(cluster_array, 0)[0][0], 0)[0][0]], 0))
+        if mode == 'p':
+            # Determine the final line as the line with the angle closest to 0 or 90 degree
+            if abs(cluster_array[0][0][1] - math.radians(0)) < abs(cluster_array[0][0][1] - math.radians(90)):
+                points_to_keep.append(np.expand_dims(cluster_array[np.argmin(abs(cluster_array[:, 0, 1]-math.radians(0)))], 0))  
+            else:
+                points_to_keep.append(np.expand_dims(cluster_array[np.argmin(abs(cluster_array[:, 0, 1]-math.radians(90)))], 0))  
+        else:
+            # Determine the final line as the line has a median value of rho
+            points_to_keep.append(np.expand_dims(cluster_array[np.argmax(cluster_array==np.median(cluster_array, 0)[0][0], 0)[0][0]], 0)) 
     points_to_keep = np.concatenate(points_to_keep, 0)
     return points_to_keep
 
@@ -643,6 +654,8 @@ def main():
     paths = [os.path.join(args.FILES_DIR, f) for f in os.listdir(args.FILES_DIR)]
 
     for path in paths:
+        if "rotate" not in path:
+            continue
         # If a pdf file is read.
         if path[-4:] == '.pdf':
             # Process the pdf file.

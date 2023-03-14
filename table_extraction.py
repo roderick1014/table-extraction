@@ -93,6 +93,10 @@ def process_pdf(path):
         # Keeping only the table from the image.
         binarized_img_array = keep_table(rm_txt_img)
 
+        
+        dilation_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        dilated_table_map = cv2.dilate(binarized_img_array, dilation_kernel, iterations=3) != 0
+
         # Displaying the image if the DEBUG or DRAW mode is on.
         if args.DRAW or args.DEBUG:
             img_show(binarized_img_array)
@@ -119,7 +123,7 @@ def process_pdf(path):
                 img_array = draw_intersections(img_array, intersections)
                 img_show(img_array)
 
-            table_record.append(text_extraction(org_img, intersections))
+            table_record.append(text_extraction(org_img, intersections, dilated_table_map))
 
     # Table concatenation
     table_processing(table_record, new_path_name)
@@ -225,7 +229,7 @@ def find_minValidSquare(img_array):
     return ((left_most_x, top_most_y), (right_most_x, top_most_y), (right_most_x, bottom_most_y), (left_most_x, bottom_most_y)), bottom_most_y - top_most_y, right_most_x - left_most_x
 
 # Eliminate the overlapped lines
-def eliminate_lines(lines, threshold=30, mode='p'):
+def eliminate_lines(lines, threshold=30, mode='m'):
     combos = itertools.combinations(lines, 2)
     clustered_lines = set()
     clusters = dict()
@@ -336,14 +340,15 @@ def reverse_sublist(lst,start,end):
     return lst
 
 # Defining the function to extract the text information.
-def text_extraction(img, sorted_intersections):
+def text_extraction(img, sorted_intersections, dilated_table_map, remove_table=True):
     '''
         This function takes in an image and a set of sorted intersections and extracts the text from the table.
         It first checks whether the table has been rotated slightly and adjusts the sorted intersections accordingly.
         It then iterates over the intersections to determine the length of each row and column.
         Once the length of each row and column is known, it extracts the text from the table by cropping each cell and running OCR on it.
     '''
-
+    if remove_table:
+       img[dilated_table_map] = np.ones((1, 1, 3), dtype=np.uint8) * 255
     # if sorted_intersections[0][0] < sorted_intersections[1][0]:
     #     slight_right_rotated = True
     #     if args.DRAW or args.DEBUG:
@@ -654,7 +659,7 @@ def main():
     paths = [os.path.join(args.FILES_DIR, f) for f in os.listdir(args.FILES_DIR)]
 
     for path in paths:
-        if "rotate" not in path:
+        if "thin"  in path:
             continue
         # If a pdf file is read.
         if path[-4:] == '.pdf':

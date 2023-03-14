@@ -123,7 +123,7 @@ def process_pdf(path):
                 img_array = draw_intersections(img_array, intersections)
                 img_show(img_array)
 
-            table_record.append(text_extraction(org_img, intersections, dilated_table_map))
+            table_record.append(text_extraction_faster(org_img, intersections, dilated_table_map))
 
     # Table concatenation
     table_processing(table_record, new_path_name)
@@ -339,8 +339,129 @@ def reverse_sublist(lst,start,end):
     lst[start:end] = lst[start:end][::-1]
     return lst
 
+class DrawTokens:
+    def __init__(self, font_style = cv2.FONT_HERSHEY_SIMPLEX, font_scale = 0.9, thickness=2):
+        self.font_style = font_style
+        self.font_scale = font_scale
+        self.thickness = thickness
+    def draw(self, text, h, w, x, y):
+        token_crop = cv2.putText( np.ones((h, w, 3), dtype=np.uint8)*255, 
+                                  text, (x, y), self.font_style, 
+                                  self.font_scale, (0, 0, 255), self.thickness, cv2.LINE_AA)
+        return token_crop
+    def get_token_size(self, text):    
+        (text_w, text_h), _ = cv2.getTextSize(text, self.font_style, self.font_scale, self.thickness)
+        return (text_w, text_h)
+
 # Defining the function to extract the text information. (A quicker version)
-def text_extraction(img, sorted_intersections, dilated_table_map, remove_table=True):
+def text_extraction_faster(img, sorted_intersections, dilated_table_map, remove_table=True):
+    '''
+        This function takes in an image and a set of sorted intersections and extracts the text from the table.
+        It first checks whether the table has been rotated slightly and adjusts the sorted intersections accordingly.
+        It then iterates over the intersections to determine the length of each row and column.
+        Once the length of each row and column is known, it extracts the text from the table by cropping each cell and running OCR on it.
+    '''
+    if remove_table:
+       img[dilated_table_map] = np.ones((1, 1, 3), dtype=np.uint8) * 255
+
+    for idx in range(1, len(sorted_intersections)):            # Until we find a different y-axis value, we obtain the length of the row.
+        current_point = sorted_intersections[idx][0]
+        previous_point = sorted_intersections[idx - 1][0]
+
+        if (previous_point + 30 < current_point) or (previous_point - 30 > current_point):
+            break
+
+    row_intersections = idx
+
+    if args.DRAW or args.DEBUG:
+        print('='*120)
+
+    TokenDrawer = DrawTokens()
+    columns = list()
+    max_col_width = 0
+    for idx in range(0, len(sorted_intersections)-row_intersections, row_intersections):
+        x0, y0 = sorted_intersections[idx][0], sorted_intersections[idx][1]
+        x1, y1 = sorted_intersections[idx + 2 * row_intersections - 1][0], sorted_intersections[idx + 2 * row_intersections - 1][1]
+        cropped_img = img[y0:y1, x0:x1]
+        sub_cropped_imgs = list()
+        token_col = "SpecialToken"
+        text_w, text_h = TokenDrawer.get_token_size(token_col)
+        min_width = text_w + 20
+        upper_bound_y = sorted_intersections[idx][1]
+        for i in range(row_intersections-1):
+            # 1. Get the 4 corners of a cell
+            y_lt = sorted_intersections[idx+i][1]
+            y_rt = sorted_intersections[idx+i+row_intersections][1]
+            y_lb = sorted_intersections[idx+i+1][1]
+            y_rb = sorted_intersections[idx+i+1+row_intersections][1]
+            top_y = min(y_lt, y_rt)
+            bottom_y = max(y_lb, y_rb)
+
+            # 2. Crop the cell based on the 4 corners
+            # If the width of cropped_img <= min_width, pad the edges
+            if cropped_img.shape[1] <= min_width:
+                white_bkg = np.ones((cropped_img.shape[0], min_width, 3), dtype=np.uint8)*255
+                white_bkg[:, (min_width-cropped_img.shape[1])//2:(min_width-cropped_img.shape[1])//2+cropped_img.shape[1], :] = cropped_img
+                cropped_img = white_bkg
+            sub_cropped_img = cropped_img[top_y-upper_bound_y:bottom_y-upper_bound_y, :]
+
+            # 3. Append a image crop
+            sub_cropped_imgs.append(sub_cropped_img)
+
+            # 4. Draw token_col
+            token_pos_x = (sub_cropped_img.shape[1])//2 - text_w//2
+            token_pos_y = (text_h+100)//2 + text_h//2
+            token_crop = TokenDrawer.draw(token_col, text_h+100, sub_cropped_img.shape[1], token_pos_x, token_pos_y)
+
+            # 5. Append token
+            if i < row_intersections-2:
+                sub_cropped_imgs.append(token_crop)
+
+        # 6. Concatenate the crops in the same column, and seperating them by tokens 
+        combined_cells_cols = np.concatenate(sub_cropped_imgs, 0)
+        columns.append(combined_cells_cols)
+        max_col_width = max(max_col_width, combined_cells_cols.shape[1])
+
+    columns_to_concat = list()
+    token_row = "TokenRow"
+    # 7. Concatenate all columns
+    for i, col in enumerate(columns):
+        # 7.1. If a column is thiner than the thickest column, make it's width equal to `max_col_width`
+        if col.shape[1] < max_col_width:
+            white_bkg = np.ones((col.shape[0], max_col_width, 3), dtype=np.uint8)*255
+            white_bkg[:col.shape[0], :col.shape[1], :] = col
+            col = white_bkg
+        columns_to_concat.append(col)
+
+        if i < len(columns)-1:
+            # 7.2 Generate a token crop to seperate every columns
+            text_w, text_h = TokenDrawer.get_token_size(token_row)
+            token_pos_x = max_col_width//2 - text_w//2
+            token_pos_y = (text_h+100)//2 + text_h//2
+            token_crop = TokenDrawer.draw(token_row, text_h+100, max_col_width, token_pos_x, token_pos_y)
+            columns_to_concat.append(token_crop)
+    combined_cells = np.concatenate(columns_to_concat, 0)
+        
+    if args.DRAW or args.DEBUG:
+        img_show(combined_cells)
+
+    # To detect Deutsch, we have to specify lang = "deu"
+    text = pytesseract.image_to_string(combined_cells, lang = "deu")
+
+    # Replace the \n to space for further processing.
+    new_text = text.replace('\n', ' ').replace('- ', '')
+
+    table_record = list()
+    column_records = new_text.split(token_row)
+    for col_record in column_records:
+        table_record.append(col_record.split(token_col))
+    for i, col in enumerate(table_record):
+        for j, cell in enumerate(col):
+            table_record[i][j] = cell.strip()
+    return np.array(table_record)
+
+# Defining the function to extract the text information. (A quicker version)
+def text_extraction_fast(img, sorted_intersections, dilated_table_map, remove_table=True):
     '''
         This function takes in an image and a set of sorted intersections and extracts the text from the table.
         It first checks whether the table has been rotated slightly and adjusts the sorted intersections accordingly.

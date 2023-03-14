@@ -736,8 +736,6 @@ def main():
     paths = [os.path.join(args.FILES_DIR, f) for f in os.listdir(args.FILES_DIR)]
 
     for path in paths:
-        if "thin"  in path or 'test' in path:
-            continue
         # If a pdf file is read.
         if path[-4:] == '.pdf':
             # Process the pdf file.

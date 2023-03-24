@@ -16,7 +16,7 @@
         "Betrag pro Anteil": "",
         "% des Stamm kapitals pro Anteil": "",
         "% des  Stammkapitals": "68,86%",
-        "Wert in Euro": "19.000,00 €",
+        "Wert in Euro": "— 19.000,00 €",
         "Veränderungen": ""
     },
     {
@@ -26,7 +26,7 @@
         "Betrag pro Anteil": "1,00 €",
         "% des Stamm kapitals pro Anteil": "0.0036%",
         "% des  Stammkapitals": "",
-        "Wert in Euro": "19.000,00 €",
+        "Wert in Euro": "19.000.00 €",
         "Veränderungen": ""
     },
     {
@@ -36,7 +36,7 @@
         "Betrag pro Anteil": "",
         "% des Stamm kapitals pro Anteil": "",
         "% des  Stammkapitals": "7,43%",
-        "Wert in Euro": "2.050,00 €",
+        "Wert in Euro": "\"2.050,00 €",
         "Veränderungen": ""
     },
     {
@@ -113,7 +113,7 @@
         "Gesellschafter": "Gesellschafter",
         "Anteile": "Anteile",
         "Anzahl": "Anzahl",
-        "Betrag pro Anteil": "Betrag pro  Anteil",
+        "Betrag pro Anteil": "Betrag pro Anteil",
         "% des Stamm kapitals pro Anteil": "% des Stammkapitals pro Anteil",
         "% des  Stammkapitals": "% des Stammkapitals",
         "Wert in Euro": "Wert in Euro",
@@ -130,7 +130,7 @@
         "Veränderungen": ""
     },
     {
-        "Gesellschafter": "Prof. Dr. Horst Walter Endriß, geb. am 19.04.1938, wohnhaft in Remagen",
+        "Gesellschafter": "Prof. Dr. Horst Walter Endriß, geb. am 19.04.1938, wohnhaft in Remagen_",
         "Anteile": "",
         "Anzahl": "2.493",
         "Betrag pro Anteil": "",
@@ -157,7 +157,7 @@
         "% des Stamm kapitals pro Anteil": "0.0036%",
         "% des  Stammkapitals": "",
         "Wert in Euro": "890,00 €",
-        "Veränderungen": "Kapitalerhöhung vom 11 07 2019"
+        "Veränderungen": "Kapitalerhöhung vom 11.07.2019"
     },
     {
         "Gesellschafter": "",
@@ -166,7 +166,7 @@
         "Betrag pro Anteil": "",
         "% des Stamm kapitals pro Anteil": "",
         "% des  Stammkapitals": "100%",
-        "Wert in Euro": "27.593,00 € |",
+        "Wert in Euro": "27.593.00 €",
         "Veränderungen": ""
     }
 ]

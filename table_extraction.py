@@ -240,14 +240,14 @@ def keep_table(img, dilation_textRegion=True, filter_noise=True):
         if dilation_textRegion:
             smaller_dilation_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
             
-            # 1.1. After removing the table lines, img_bin_otsu will be the removed regions
+            # 1.1. After removing the table lines, `img_bin_otsu` will be the removed regions
             vertical_horizontal_lines_dilated = vertical_horizontal_lines.copy()
             vertical_horizontal_lines_dilated = cv2.dilate(vertical_horizontal_lines_dilated, smaller_dilation_kernel, iterations=3)
             img_bin_otsu[vertical_horizontal_lines_dilated==255] = 0
             if args.DRAW or args.DEBUG:
                 img_show(img_bin_otsu)
             
-            # 2. Filter out noise if we set the filter_noise flag 
+            # 2. Filter out noise if we set the `filter_noise` flag 
             if filter_noise:
                 kernel_noise = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
                 if args.DRAW or args.DEBUG:
@@ -265,7 +265,7 @@ def keep_table(img, dilation_textRegion=True, filter_noise=True):
             if args.DRAW or args.DEBUG:
                 img_show(img_bin_otsu)
 
-            # 1.3. Remove the regions near to the removed regions by the dilated removed region map (img_bin_otsu)
+            # 1.3. Remove the regions near to the removed regions by the dilated removed region map (`img_bin_otsu`)
             vertical_horizontal_lines[img_bin_otsu==255] = 0
             if args.DRAW or args.DEBUG:
                 img_show(vertical_horizontal_lines)
@@ -281,9 +281,7 @@ def find_minValidSquare(img_array):
         top_most_y = 0
         bottom_most_y = img_array.shape[0]
     else:
-        # first_nonzero_idx_x = np.min(np.argwhere(img_array == 255), axis=1)
         last_nonzero_idx_x = np.max(np.argwhere(img_array == 255), axis=1)
-        # first_nonzero_idx_y = np.min(np.argwhere(img_array == 255), axis=0)
         last_nonzero_idx_y = np.max(np.argwhere(img_array == 255), axis=0)
         left_most_x = np.argmax(np.argmax(img_array, 0)!=0)
         right_most_x = max(last_nonzero_idx_x)
@@ -293,15 +291,24 @@ def find_minValidSquare(img_array):
 
 # Eliminate the overlapped lines
 def eliminate_lines(lines, threshold=25, mode='m'):
+    '''
+    This function eliminate the redundant lines by the following steps:
+        1. It groups lines that are in close proximity to each other into the same cluster.
+        2. For each cluster, it selects a representative line. 
+           This can be done by calculating the median angle or position of the lines in the cluster, 
+           or by identifying the line that is closest to the vertical or horizontal axis.
+    '''
+    
+    # Step 1: Groups lines that are in close proximity to each other into the same cluster.
     combos = itertools.combinations(lines, 2)
     clustered_lines = set()
     clusters = dict()
-    prev_point = lines[0]
+    prev_line = lines[0]
     for line1, line2 in combos:
-        if str(line1) != str(prev_point) and str(prev_point) not in clustered_lines:
-            clustered_lines.add(str(prev_point))
-            clusters[str(prev_point)].append(prev_point)
-        prev_point = line1
+        if str(line1) != str(prev_line) and str(prev_line) not in clustered_lines:
+            clustered_lines.add(str(prev_line))
+            clusters[str(prev_line)].append(prev_line)
+        prev_line = line1
         if str(line1) not in clusters.keys() and str(line1) not in clustered_lines:
             clusters[str(line1)] = list()
         if str(line1) in clustered_lines or str(line2) in clustered_lines:
@@ -309,29 +316,34 @@ def eliminate_lines(lines, threshold=25, mode='m'):
         if abs(line1[0][0] - line2[0][0]) <= threshold:
             clustered_lines.add(str(line2))
             clusters[str(line1)].append(line2)
-    if str(prev_point) not in clustered_lines:   
-        clusters[str(prev_point)].append(prev_point)
+    if str(prev_line) not in clustered_lines:   
+        clusters[str(prev_line)].append(prev_line)
     if str(lines[-1]) not in clustered_lines:   
         clusters[str(lines[-1])] = [lines[-1]]
-    points_to_keep = list()
+    
+    # Step 2: Determine the representative line for each cluster.
+    lines_to_keep = list()
     for cluster in clusters.values():
         cluster_array = np.array(cluster)
         if mode == 'p':
             # Determine the final line as the line with the angle closest to 0 or 90 degree
             if abs(cluster_array[0][0][1] - math.radians(0)) < abs(cluster_array[0][0][1] - math.radians(90)):
-                points_to_keep.append(np.expand_dims(cluster_array[np.argmin(abs(cluster_array[:, 0, 1]-math.radians(0)))], 0))  
+                lines_to_keep.append(np.expand_dims(cluster_array[np.argmin(abs(cluster_array[:, 0, 1]-math.radians(0)))], 0))  
             else:
-                points_to_keep.append(np.expand_dims(cluster_array[np.argmin(abs(cluster_array[:, 0, 1]-math.radians(90)))], 0))  
+                lines_to_keep.append(np.expand_dims(cluster_array[np.argmin(abs(cluster_array[:, 0, 1]-math.radians(90)))], 0))  
         else:
             # Determine the final line as the line has a median value of rho
-            points_to_keep.append(np.expand_dims(cluster_array[np.argmax(cluster_array==np.median(cluster_array, 0)[0][0], 0)[0][0]], 0)) 
-    points_to_keep = np.concatenate(points_to_keep, 0)
-    return points_to_keep
+            lines_to_keep.append(np.expand_dims(cluster_array[np.argmax(cluster_array==np.median(cluster_array, 0)[0][0], 0)[0][0]], 0)) 
+    lines_to_keep = np.concatenate(lines_to_keep, 0)
+    return lines_to_keep
 
 # Defining the function to conduct hough transform.
 def houghline(img_array, eliminate_overlapped_lines=True, tolerable_shifted_angle=5):
     '''
         This function applies the Hough transform to an image to detect lines. It returns the detected lines.
+        We use a dynamic threshold for both the vertical and the horizontal lines.
+        The threshold is set depending on the width or the height of the minimum square containing all candidate points.
+        Specifically, the threshold is equal to the width (or height) times a ratio, which we set it as `args.THRESHOLD_PERCENTAGE`.
     '''
 
     # Find the width and height of the minimum square region that containing all candidate edge points 
@@ -348,10 +360,11 @@ def houghline(img_array, eliminate_overlapped_lines=True, tolerable_shifted_angl
 
     rho, theta, thresh_per = 2, np.pi/180, args.THRESHOLD_PERCENTAGE
     lines_horizontal = cv2.HoughLines(img_array, rho, theta, int(square_w*thresh_per), min_theta=math.radians(90-tolerable_shifted_angle), max_theta=math.radians(90+tolerable_shifted_angle))
+    # Many lines are detected for a line of the table. We use `eliminate_lines()` to remove the redundant lines.
     if lines_horizontal is not None and eliminate_overlapped_lines:
         lines_horizontal = eliminate_lines(lines_horizontal)
     lines_vertical = cv2.HoughLines(img_array, rho, theta, int(square_h*thresh_per), min_theta=math.radians(-tolerable_shifted_angle), max_theta=math.radians(tolerable_shifted_angle))
-    if lines_horizontal is not None and eliminate_overlapped_lines:
+    if lines_horizontal is not None and eliminate_overlapped_lines: 
         lines_vertical = eliminate_lines(lines_vertical)
     lines = None if lines_horizontal is None and lines_vertical is None else [lines_horizontal, lines_vertical]
     return lines
@@ -681,10 +694,10 @@ def remove_close_points(input_list, threshold=(30, 30)):
                         if abs(point1[0] - point2[0]) <= threshold[0] and abs(point1[1] - point2[1]) <= threshold[1]]
 
     # Create a list of points that are not in the points_to_remove list.
-    points_to_keep = [point for point in input_list if point not in points_to_remove]
+    lines_to_keep = [point for point in input_list if point not in points_to_remove]
 
-    # Return the points_to_keep list.
-    return points_to_keep
+    # Return the lines_to_keep list.
+    return lines_to_keep
 
 # Defining the function to remove the texts in thetable.
 def remove_text(img, binarized_img):

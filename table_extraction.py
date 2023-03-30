@@ -517,7 +517,6 @@ def text_extraction_faster(img, sorted_intersections, dilated_table_map, remove_
             token_crop = TokenDrawer.draw(token_row, text_h+100, max_col_width, token_pos_x, token_pos_y, color='blue')
             columns_to_concat.append(token_crop)
     combined_cells = np.concatenate(columns_to_concat, 0)
-    cv2.imwrite("./vis.png", combined_cells)
         
     if args.DRAW or args.DEBUG:
         img_show(combined_cells)

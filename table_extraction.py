@@ -33,8 +33,25 @@ def read_pdf(file_name):
     pages = convert_from_path(file_name, args.DPI)
     return pages
 
+# Remove table in the image
+def remove_table(img, lines):
+    # The table received by the `keep_table()` function might containing some non-table regions
+    dilation_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+
+    # The boolean map dilated_table_map indicates the pixels that the lines found by Hough transform go through.
+    dilated_table_map = np.zeros_like(img, dtype=np.uint8)
+    draw_line(dilated_table_map, lines)
+    dilated_table_map = dilated_table_map.max(-1)
+    dilated_table_map = cv2.dilate(dilated_table_map, dilation_kernel, iterations=6) != 0
+
+    img[dilated_table_map] = np.ones((1, 1, 3), dtype=np.uint8) * 255
+
+    if args.DRAW or args.DEBUG:
+        img_show(dilated_table_map.astype(np.uint8)*255)
+    return img
+
 # Defining the function to process PDF files.
-def process_pdf(path):
+def process_pdf(path, rm_table=True):
 
     # Creating the folder.
     new_path_name = path[:len(path) - 4]
@@ -123,24 +140,11 @@ def process_pdf(path):
                 img_array = draw_intersections(img_array, intersections)
                 img_show(img_array)
             
-            """            
-            Get the boolean map indicating the dilated table pixels. 
-            It will be used for removing the table in the OCR process.
-            Removing the table in images can make the prediction more accurate.
-            """
-            # The table received by the `keep_table()` function might containing some non-table regions
-            dilation_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+            # Remove table in the image
+            if rm_table:
+                org_img = remove_table(org_img, lines)
 
-            # The boolean map dilated_table_map indicates the pixels that the lines found by Hough transform go through.
-            dilated_table_map = np.zeros_like(img_array, dtype=np.uint8)
-            draw_line(dilated_table_map, lines)
-            dilated_table_map = dilated_table_map.max(-1)
-            dilated_table_map = cv2.dilate(dilated_table_map, dilation_kernel, iterations=6) != 0
-
-            if args.DRAW or args.DEBUG:
-                img_show(dilated_table_map.astype(np.uint8)*255)
-
-            table_record.append(text_extraction_faster(org_img, intersections, dilated_table_map))
+            table_record.append(text_extraction_faster(org_img, intersections))
 
     # Table concatenation
     table_processing(table_record, new_path_name)
@@ -364,7 +368,7 @@ def houghline(img_array, eliminate_overlapped_lines=True, tolerable_shifted_angl
     if lines_horizontal is not None and eliminate_overlapped_lines:
         lines_horizontal = eliminate_lines(lines_horizontal)
     lines_vertical = cv2.HoughLines(img_array, rho, theta, int(square_h*thresh_per), min_theta=math.radians(-tolerable_shifted_angle), max_theta=math.radians(tolerable_shifted_angle))
-    if lines_horizontal is not None and eliminate_overlapped_lines: 
+    if lines_vertical is not None and eliminate_overlapped_lines: 
         lines_vertical = eliminate_lines(lines_vertical)
     lines = None if lines_horizontal is None and lines_vertical is None else [lines_horizontal, lines_vertical]
     return lines
@@ -430,15 +434,13 @@ class DrawTokens:
         return (text_w, text_h)
 
 # Defining the function to extract the text information. (A quicker version)
-def text_extraction_faster(img, sorted_intersections, dilated_table_map, remove_table=True):
+def text_extraction_faster(img, sorted_intersections):
     '''
         This function takes in an image and a set of sorted intersections and extracts the text from the table.
         It first checks whether the table has been rotated slightly and adjusts the sorted intersections accordingly.
         It then iterates over the intersections to determine the length of each row and column.
         Once the length of each row and column is known, it extracts the text from the table by cropping each cell and running OCR on it.
     '''
-    if remove_table:
-       img[dilated_table_map] = np.ones((1, 1, 3), dtype=np.uint8) * 255
 
     for idx in range(1, len(sorted_intersections)):            # Until we find a different y-axis value, we obtain the length of the row.
         current_point = sorted_intersections[idx][0]
@@ -920,7 +922,7 @@ def config_message():
 
     print('='*120)
     print('DPI: ', args.DPI)
-    print('THRESHOLD: ', args.THRESHOLD)
+    print('THRESHOLD_PERCENTAGE: ', args.THRESHOLD_PERCENTAGE)
     print('SAVE_EACH_PAGE: ', args.SAVE_EACH_PAGE)
     print('DRAW: ', args.DRAW)
     print('DEBUG: ', args.DEBUG)
@@ -949,7 +951,6 @@ if __name__ == '__main__':
     parser.add_argument("--DRAW", default=False, action='store_true')
     parser.add_argument("--DEBUG", default=False, action='store_true')
     parser.add_argument('--DPI', default = 200, type=int)  # DPI 200
-    parser.add_argument('--THRESHOLD', default = 1300, type=int)
     parser.add_argument('--THRESHOLD_PERCENTAGE', default = 0.8, type=float)
     parser.add_argument('--FILES_DIR', default = './', type=str)
     args = parser.parse_args()

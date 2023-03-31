@@ -874,27 +874,12 @@ def rotate_bound(img, angle):
     '''
         This function rotateds image base on warp and affine transformation.
     '''
-
-    # Grab the dimensions of the image and then determine the center
-    (h, w) = img.shape[:2]
-    (cX, cY) = (w // 2, h // 2)
-
-    # Grab the rotation matrix (applying the negative of the angle to rotate clockwise), then grab the sine and cosine.
-    # (the rotation components of the matrix)
-    M = cv2.getRotationMatrix2D((cX, cY), angle, 1.0)
-    cos = np.abs(M[0, 0])
-    sin = np.abs(M[0, 1])
-
-    # Compute the new bounding dimensions of the image
-    nW = int((h * sin) + (w * cos))
-    nH = int((h * cos) + (w * sin))
-
-    # Adjust the rotation matrix to take into account translation
-    M[0, 2] += (nW / 2) - cX
-    M[1, 2] += (nH / 2) - cY
-
-    # Perform the actual rotation and return the image
-    return cv2.warpAffine(img, M, (nW, nH))
+    if angle == 270:
+        return cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+    elif angle == 180:
+        return cv2.rotate(img, cv2.ROTATE_180)
+    elif angle == 90:
+        return cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
 # Defining the function to convert PIL to numpy array.
 def pil2np(img):

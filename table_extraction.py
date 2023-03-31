@@ -51,7 +51,7 @@ def remove_table(img, lines):
     return img
 
 # Defining the function to process PDF files.
-def process_pdf(path, rm_table=True):
+def process_pdf(path, rm_table=True, enhance_img=True):
 
     # Creating the folder.
     new_path_name = path[:len(path) - 4]
@@ -90,9 +90,11 @@ def process_pdf(path, rm_table=True):
         if args.DRAW or args.DEBUG:
             img_show(img_array)
 
-        img_array[img_array<225] = 0
-        if args.DRAW or args.DEBUG:
-            img_show(img_array)
+        # Enhance the image
+        if enhance_img:
+            img_array[img_array<225] = 0
+            if args.DRAW or args.DEBUG:
+                img_show(img_array)
 
         # Getting the dimensions of the image.
         h, w, _ = img_array.shape
